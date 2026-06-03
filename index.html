@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TouchWall: Interactive Smart Projector Hand Tracking System</title>
+  <meta name="description" content="Turn any projected wall surface into a premium touch screen using high-accuracy webcam hand tracking and perspective calibration.">
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Classic MediaPipe Hands & Camera CDN (More stable in plain HTML browser contexts) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <div id="app-container">
+    
+    <!-- 1. MAIN DISPLAY SPACE (What is projected onto the wall) -->
+    <main id="projector-screen">
+      
+      <!-- Interactive Custom Cursor (maps to tracked index finger) -->
+      <div id="custom-cursor">
+        <svg id="dwell-ring">
+          <circle id="dwell-ring-circle" cx="22" cy="22" r="19"></circle>
+        </svg>
+      </div>
+
+      <!-- 4-Point Calibration Wizard Overlay -->
+      <div id="calibration-overlay" class="calibration-overlay">
+        <div class="calibration-guide">
+          <h2>TouchWall Calibration</h2>
+          <p id="calibration-instruction">To align your webcam's view with your projected wall screen, please touch each corner target point using your index finger (or click on them with your mouse to calibrate manually from your computer).</p>
+          <div class="step-indicator">
+            <span class="step-dot" id="dot-step-0"></span>
+            <span class="step-dot" id="dot-step-1"></span>
+            <span class="step-dot" id="dot-step-2"></span>
+            <span class="step-dot" id="dot-step-3"></span>
+          </div>
+          <button class="btn btn-accent" id="cancel-calibration-btn" style="margin-top: 24px; width: 100%;">Cancel Calibration</button>
+        </div>
+
+        <!-- 4 Corner Touch Targets -->
+        <div class="calibration-dot" id="cal-dot-0" style="top: 5%; left: 5%;" data-corner="0"></div>
+        <div class="calibration-dot" id="cal-dot-1" style="top: 5%; left: 95%;" data-corner="1"></div>
+        <div class="calibration-dot" id="cal-dot-2" style="top: 95%; left: 95%;" data-corner="2"></div>
+        <div class="calibration-dot" id="cal-dot-3" style="top: 95%; left: 5%;" data-corner="3"></div>
+      </div>
+
+      <!-- Main Projector Dashboard -->
+      <div id="desktop-dashboard">
+        <header>
+          <div>
+            <h2>CogniPlay Studio</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 2px;">Interactive play space for touch, trace, draw, and explore</p>
+          </div>
+          
+          <!-- Navigation Tabs -->
+          <div class="app-tabs">
+            <button class="tab-btn active" data-app="puzzles">Puzzle Playground</button>
+            <button class="tab-btn" data-app="canvas">Whiteboard</button>
+            <button class="tab-btn" data-app="recording">Recording</button>
+            <button class="tab-btn" data-app="debugger">CV Engine</button>
+          </div>
+
+          <div class="system-badge inactive" id="top-status-badge">
+            <span class="status-indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red); display: inline-block;"></span>
+            <span id="top-status-text">CV Off</span>
+          </div>
+        </header>
+
+        <!-- Active View Window -->
+        <div id="active-app-frame">
+          
+          <!-- App 1: Cognitive Playground -->
+          <div class="app-view active" id="app-puzzles">
+            <div id="puzzle-app">
+              <iframe
+                id="cogniplay-frame"
+                title="CogniPlay Puzzle Playground"
+                src="/cogniplay/"
+                allow="camera; microphone; fullscreen"
+              ></iframe>
+            </div>
+          </div>
+
+          <!-- App 2: Drawing Board -->
+          <div class="app-view" id="app-canvas">
+            <div id="canvas-app">
+              <div class="canvas-toolbar">
+                <div class="color-palette">
+                  <div class="color-swatch active" style="background-color: var(--accent-cyan);" data-color="#00f2fe"></div>
+                  <div class="color-swatch" style="background-color: var(--accent-magenta);" data-color="#ff007f"></div>
+                  <div class="color-swatch" style="background-color: var(--accent-yellow);" data-color="#fefe00"></div>
+                  <div class="color-swatch" style="background-color: var(--accent-green);" data-color="#39ff14"></div>
+                  <div class="color-swatch" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <button class="btn tool-btn active" onclick="whiteboardSetTool('brush')">🖌️ Brush</button>
+                  <button class="btn tool-btn" onclick="whiteboardSetTool('eraser')">🧼 Eraser</button>
+                  <button class="btn tool-btn" onclick="whiteboardSetTool('laser')">🔴 Laser</button>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button class="btn" onclick="whiteboardUndo()">↩️ Undo</button>
+                  <button class="btn" onclick="whiteboardRedo()">↪️ Redo</button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; flex-grow: 0.2;">
+                  <label style="width: 80px;">Size: <span id="brush-size-val" class="value-display">8px</span></label>
+                  <input type="range" id="brush-size" min="2" max="30" value="8">
+                </div>
+
+                <button class="btn" id="clear-canvas-btn" style="background: rgba(255,0,0,0.1); border-color: rgba(255,0,0,0.3);">
+                  <span>🧹</span> Clear
+                </button>
+              </div>
+              
+              <!-- AI Magic Copilot Bar -->
+              <div class="ai-toolbar" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,242,254,0.05); padding: 10px 20px; border-bottom: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <label for="ai-shape-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--accent-cyan); font-weight: bold;">
+                    <span>✨</span> AI Shape Assist
+                  </label>
+                  <input type="checkbox" id="ai-shape-toggle" checked onchange="toggleAiShapeAssist(this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-cyan);">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px; flex-grow: 0.8; flex-wrap: wrap;">
+                  <input type="text" id="ai-prompt-input" placeholder="Ask local AI or make a flowchart" style="flex-grow: 1; padding: 8px 15px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-cyan); color: #fff; outline: none;">
+                  <button class="btn" onclick="toggleVirtualKeyboard()" style="padding: 8px 12px; font-size: 1.2rem;" title="On-Screen Keyboard">⌨️</button>
+                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'flowchart')" style="padding: 8px 14px;">Flowchart</button>
+                  <button class="btn" onclick="triggerLocalAi(document.getElementById('ai-prompt-input').value, 'answer')" style="padding: 8px 14px;">Ask</button>
+                </div>
+              </div>
+              
+              <div class="whiteboard-stage">
+                <canvas id="paint-canvas"></canvas>
+              </div>
+              
+              <!-- Virtual Keyboard Overlay -->
+              <div id="virtual-keyboard" class="glass-panel" style="display: none; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 800px; z-index: 1000; flex-direction: column; gap: 8px; padding: 20px; background: rgba(10, 12, 20, 0.95); border-color: var(--accent-cyan);">
+                 <div id="vk-keys" style="display: flex; flex-direction: column; gap: 8px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- App 3: Physics Popping Game -->
+          <div class="app-view" id="app-game">
+            <div id="game-app">
+              <div class="game-hud">
+                <div class="hud-panel">Score: <span id="game-score">0</span></div>
+                <div class="hud-panel">Time: <span id="game-timer">60</span>s</div>
+              </div>
+              
+              <div class="game-welcome" id="game-welcome-screen">
+                <h3>Laser Pop</h3>
+                <p>An interactive, high-speed wall projection game. Hover or pinch over active glowing spheres to pop them before they explode!</p>
+                <button class="btn btn-primary" id="start-game-btn" style="width: 100%;">Start Game</button>
+              </div>
+              
+              <canvas id="game-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- App 4: Recording & Subtitles -->
+          <div class="app-view" id="app-recording">
+            <div id="recording-app">
+              <section class="glass-panel recording-card">
+                <h3>Lecture Recording</h3>
+                <p>Record class sessions with local live subtitles burned into the recording when Whisper is installed.</p>
+                <div class="recording-actions">
+                  <button class="btn btn-primary" id="record-session-btn">Start Recording</button>
+                  <button class="btn" id="upload-session-btn">Upload to Cloud</button>
+                  <button class="btn" id="captions-session-btn">Start Live Subtitles</button>
+                </div>
+                <div id="recording-status" class="recording-status">Ready for full system screen recording with camera picture-in-picture. Local subtitles use Whisper/whisper.cpp on this Mac.</div>
+                <div id="live-caption-preview" class="live-caption-preview">Local subtitles will appear here and at the bottom of recordings.</div>
+              </section>
+            </div>
+          </div>
+
+          <!-- App 4: Debugger & Metrics console -->
+          <div class="app-view" id="app-debugger">
+            <div id="debugger-app">
+              
+              <div class="glass-panel" style="display: flex; flex-direction: column; gap: 15px;">
+                <h3>Telemetry Metrics</h3>
+                
+                <div class="metric-grid">
+                  <div class="metric-box">
+                    <label>Frame rate</label>
+                    <div class="metric-value" id="val-fps">0 FPS</div>
+                  </div>
+                  <div class="metric-box">
+                    <label>Z-Depth Position</label>
+                    <div class="metric-value" id="val-z">0.00</div>
+                  </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+                  <div>
+                    <label>Pinch Value <span id="metric-pinch-val" class="value-display">0.000</span></label>
+                    <div class="gesture-status-bar">
+                      <div class="gesture-status-fill" id="fill-pinch"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <label>Push Depth Value <span id="metric-depth-val" class="value-display">0.000</span></label>
+                    <div class="gesture-status-bar">
+                      <div class="gesture-status-fill" id="fill-depth"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.02); border-radius: 12px; padding: 12px; border: 1px solid var(--glass-border); margin-top: 10px;">
+                  <h4 style="font-size: 0.9rem; margin-bottom: 6px; color: var(--accent-yellow);">Homography Matrix</h4>
+                  <div id="debug-matrix" style="font-family: monospace; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">Not Calibrated</div>
+                </div>
+              </div>
+
+              <div class="debug-logs-container">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <h3>Live Log Terminal</h3>
+                  <button class="btn" id="clear-logs-btn" style="padding: 4px 10px; font-size: 0.75rem;">Clear</button>
+                </div>
+                <div class="debug-logs" id="log-terminal">Initializing TouchWall OS... Ready.</div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 2. SIDE CONTROL PANEL (Used to manage the project setup) -->
+    <aside id="control-dock">
+      <div>
+        <h1>Settings</h1>
+        <p class="subtitle">Adult setup for the interactive play wall</p>
+      </div>
+
+      <!-- Section: System Toggles -->
+      <section class="dock-section glass-panel">
+        <h3>System Action</h3>
+        <button class="btn btn-primary" id="toggle-tracking-btn">
+          <span>🚀</span> Start Hand Tracking
+        </button>
+        <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; margin-top: 4px;">
+          Secure local SSL/webcam stream required.
+        </div>
+        <div class="system-window-actions">
+          <button class="btn" id="open-cogniplay-window">Open CogniPlay Window</button>
+          <button class="btn" id="open-calibration-window">Open Calibration Window</button>
+          <button class="btn" id="open-recording-window">Open Recording Window</button>
+          <button class="btn" id="open-os-overlay-btn">Open OS Whiteboard Bar</button>
+        </div>
+      </section>
+
+      <!-- Section: Active Camera Feed overlay -->
+      <details class="dock-section glass-panel settings-details">
+        <summary>Camera Preview</summary>
+        <div class="camera-container">
+          <video id="webcam-feed" playsinline muted></video>
+          <canvas id="overlay-canvas"></canvas>
+        </div>
+      </details>
+
+      <!-- Section: Perspective Calibration -->
+      <details class="dock-section glass-panel settings-details">
+        <summary>Calibration</summary>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 5px;">
+          Map camera coordinates to the projector's boundaries using a 4-point keystoning matrix.
+        </div>
+        <button class="btn btn-accent" id="start-calibration-btn">
+          <span>🎯</span> Calibrate Projector Wall
+        </button>
+        <button class="btn btn-primary" id="auto-calibration-btn" style="margin-top: 5px; background: linear-gradient(135deg, var(--accent-green), #2ecb0d); color: #000; box-shadow: var(--glow-green); border: none;">
+          <span>👁️</span> Auto-Calibrate (Markers)
+        </button>
+        <button class="btn" id="reset-calibration-btn" style="margin-top: 5px;">
+          <span>🔄</span> Reset Calibration
+        </button>
+        <div style="margin-top: 8px;">
+          <label>Grid Mapping Density: <span class="value-display">8 x 8</span></label>
+          <input type="range" id="grid-division-count" min="2" max="16" value="8">
+        </div>
+        <div style="margin-top: 8px;">
+          <label>Angle Drift Compensation: <span id="angle-drift-val" class="value-display">35%</span></label>
+          <input type="range" id="angle-drift-strength" min="-100" max="150" value="35">
+        </div>
+        <div id="calibration-status" style="font-size: 0.8rem; text-align: center; color: var(--accent-yellow); margin-top: 4px;">
+          Status: Uncalibrated
+        </div>
+      </details>
+
+      <!-- Section: Sensitivity Adjustments -->
+      <details class="dock-section glass-panel settings-details">
+        <summary>Touch & Gestures</summary>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <label>Click Gesture Trigger: </label>
+            <select id="click-trigger-mode" style="width: 100%; margin-top: 4px; padding: 8px 12px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+              <option value="pinch">Index-Thumb Pinch (Recommended)</option>
+              <option value="dwell">Hover Dwell (1.0s Dwell)</option>
+              <option value="depth">Z-Depth Push (Advanced)</option>
+            </select>
+          </div>
+
+          <!-- Touch Depth Calibration Controls -->
+          <div id="depth-calibration-container" style="margin-top: 5px; display: none;">
+            <button class="btn btn-accent" id="calibrate-touch-depth-btn" style="padding: 8px 12px; font-size: 0.85rem; width: 100%; box-shadow: var(--glow-magenta); border: none;">
+              <span>🎯</span> Calibrate Touch Plane
+            </button>
+            <div id="touch-depth-status" style="font-size: 0.7rem; color: var(--accent-yellow); text-align: center; margin-top: 4px;">
+              Threshold: Uncalibrated (Default)
+            </div>
+          </div>
+
+          <div style="margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+            <label for="flip-x-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.85rem;">
+              <span>🔄</span> Flip Camera X-Axis (Mirror)
+            </label>
+            <input type="checkbox" id="flip-x-toggle" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-cyan);">
+          </div>
+
+          <div style="margin-top: 5px;">
+            <label for="distance-from-screen">Distance from Screen (optional): <span class="value-display">cm</span></label>
+            <input type="number" id="distance-from-screen" min="30" max="400" step="5" placeholder="Auto" onchange="setDistanceFromScreen(this.value)" style="width: 100%; margin-top: 4px; padding: 8px 12px; border-radius: 8px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+            <span style="font-size: 0.65rem; color: var(--text-muted);">Leave blank for automatic depth behavior.</span>
+          </div>
+
+          <div style="margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+            <label for="system-cursor-toggle" style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 0.85rem;">
+              <span>🖱️</span> Control System Cursor
+            </label>
+            <input type="checkbox" id="system-cursor-toggle" onchange="toggleSystemCursor(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-green);">
+          </div>
+          <div id="sys-cursor-status" style="font-size: 0.7rem; color: #ff4444; text-align: center;">
+            🔴 Bridge Offline
+          </div>
+
+          <div style="margin-top: 5px;">
+            <label>Cursor X-Offset (Fine-tune X): <span id="x-offset-val" class="value-display">0px</span></label>
+            <input type="range" id="cursor-x-offset" min="-150" max="150" value="0">
+          </div>
+
+          <div>
+            <label>Cursor Y-Offset (Fine-tune Y): <span id="y-offset-val" class="value-display">0px</span></label>
+            <input type="range" id="cursor-y-offset" min="-150" max="150" value="0">
+          </div>
+
+          <div style="margin-top: 5px;">
+            <label>Jitter Smoothing (Alpha): <span id="alpha-val" class="value-display">0.35</span></label>
+            <input type="range" id="filter-alpha" min="5" max="95" value="35">
+            <span style="font-size: 0.65rem; color: var(--text-muted);">Lower = Smoother, Higher = Lower Latency</span>
+          </div>
+
+          <div>
+            <label>Inertia Trend (Beta): <span id="beta-val" class="value-display">0.15</span></label>
+            <input type="range" id="filter-beta" min="1" max="50" value="15">
+            <span style="font-size: 0.65rem; color: var(--text-muted);">Tuning for coordinate velocity projection</span>
+          </div>
+        </div>
+      </details>
+
+    </aside>
+
+  </div>
+
+  <!-- Load project scripts -->
+  <script src="math.js"></script>
+  <script src="ai-engine.js"></script>
+  <script src="hand-tracker.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
