@@ -58,6 +58,7 @@
           <!-- Navigation Tabs -->
           <div class="app-tabs">
             <button class="tab-btn active" data-app="puzzles">Puzzle Playground</button>
+            <button class="tab-btn" data-app="prototype">Product Prototype</button>
             <button class="tab-btn" data-app="canvas">Whiteboard</button>
             <button class="tab-btn" data-app="recording">Recording</button>
             <button class="tab-btn" data-app="debugger">CV Engine</button>
@@ -84,7 +85,18 @@
             </div>
           </div>
 
-          <!-- App 2: Drawing Board -->
+          <!-- App 2: NeoTouch/CogniPlay clickable product prototype -->
+          <div class="app-view" id="app-prototype">
+            <div id="prototype-app">
+              <iframe
+                id="neotouch-prototype-frame"
+                title="NeoTouch CogniPlay Clickable Prototype"
+                src="neotouch-prototype/index.html"
+              ></iframe>
+            </div>
+          </div>
+
+          <!-- App 3: Drawing Board -->
           <div class="app-view" id="app-canvas">
             <div id="canvas-app">
               <div class="canvas-toolbar">
@@ -145,7 +157,7 @@
             </div>
           </div>
 
-          <!-- App 3: Physics Popping Game -->
+          <!-- App 4: Physics Popping Game -->
           <div class="app-view" id="app-game">
             <div id="game-app">
               <div class="game-hud">
@@ -163,7 +175,7 @@
             </div>
           </div>
 
-          <!-- App 4: Recording & Subtitles -->
+          <!-- App 5: Recording & Subtitles -->
           <div class="app-view" id="app-recording">
             <div id="recording-app">
               <section class="glass-panel recording-card">
@@ -180,7 +192,7 @@
             </div>
           </div>
 
-          <!-- App 4: Debugger & Metrics console -->
+          <!-- App 6: Debugger & Metrics console -->
           <div class="app-view" id="app-debugger">
             <div id="debugger-app">
               

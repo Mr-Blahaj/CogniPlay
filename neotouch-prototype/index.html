@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CogniPlay Studio Clickable Prototype</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./prototype.css">
+  </head>
+  <body>
+    <div class="prototype-shell">
+      <aside class="side-panel" aria-label="Prototype navigation">
+        <div class="brand-block">
+          <p class="eyebrow">Clickable prototype</p>
+          <h1>CogniPlay Studio</h1>
+          <p>Low-cost smart learning wall for play-based early childhood education.</p>
+        </div>
+
+        <nav class="screen-nav" id="screenNav" aria-label="Screens"></nav>
+
+        <div class="rubric-box">
+          <p class="eyebrow">Hardware required</p>
+          <p class="hardware-note">Good USB webcam + USB extension cable + any existing projector, TV, or display.</p>
+        </div>
+      </aside>
+
+      <main class="stage" id="stage" tabindex="-1">
+        <section class="screen-frame" aria-live="polite">
+          <div class="screen-copy">
+            <p class="eyebrow" id="screenRole">Teacher flow</p>
+            <h2 id="screenTitle">Loading prototype</h2>
+            <p id="screenSummary"></p>
+
+            <div class="status-grid" id="statusGrid"></div>
+
+            <div class="meta-grid" id="metaGrid"></div>
+
+            <div class="feature-map" id="featureMap" aria-label="Mapped requested features"></div>
+
+            <div class="proof-panel">
+              <p class="eyebrow">Mapped proof</p>
+              <ul id="proofList"></ul>
+            </div>
+
+            <div class="actions" id="actions"></div>
+          </div>
+
+          <div class="device-wrap">
+            <div class="device-topbar">
+              <span id="deviceLabel">Live product evidence</span>
+              <span class="cv-badge">CV active</span>
+            </div>
+            <div class="device-screen">
+              <img id="screenImage" alt="">
+            </div>
+            <div class="device-caption" id="deviceCaption"></div>
+          </div>
+        </section>
+
+        <section class="feature-rail" id="featureRail" aria-label="Feature map"></section>
+
+        <section class="flow-strip" id="flowStrip" aria-label="User journey shortcut"></section>
+      </main>
+    </div>
+
+    <script src="./prototype.js"></script>
+  </body>
+</html>
