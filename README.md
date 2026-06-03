@@ -3,6 +3,8 @@
 NeoTouch is a low-cost AI-powered smart board platform that transforms any projector, TV, monitor, wall, or flat surface into an interactive touch-enabled display using only a webcam and software.
 
 The project combines computer vision, hand tracking, gesture recognition, AI-assisted teaching tools, and play-based learning experiences into a single platform. Instead of relying on expensive smart board hardware, NeoTouch enables natural interaction through hand movements, allowing users to draw, write, teach, present, and collaborate on any display surface.  
+
+PLEASE NOTE THAT THIS IS JUST THE CLICKABLE PROTOTYPE, THE WORKING PROTOTYPE CAN BE FOUND IN THE https://github.com/Mr-Blahaj/NeoTouch BRANCHES HOWEVER IT LACKS SOME IMPLEMENTATIONS. 
 ---
 
 ## The Problem
